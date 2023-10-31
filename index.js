@@ -20,7 +20,7 @@ const httpServer = createServer(async (req, res) => {
 });
 
 const pingInterval = 5000;
-const pingCyclesToKeepAlive = 10;
+const pingCyclesToKeepAlive = 4;
 
 const io = new Server(httpServer, {
   connectionStateRecovery: {
@@ -42,24 +42,55 @@ function heartbeat() {
   this.lastSeen = getEpoch();
 }
 
+const members = [];
+
 io.on('connection', (socket) => {
+  const { peerId } = socket.handshake.query;
+
   console.log(`connect ${socket.id}`);
+  socket.peerId = peerId;
 
   socket.lastSeen = getEpoch();
   socket.on('alive', heartbeat);
+
+  const speculativeClear = (clientId, peerId) => {
+    // check if clientId is in sockets
+    if (!io.sockets.sockets.has(clientId)) {
+      // remove from members
+      members = members.filter((member) => {
+        if (member === peerId) {
+          console.log(`Removed ${peerId} from members.`);
+          return false; // Exclude the item from the 'members' array
+        }
+        return true; // Include other items in the 'members' array
+      });
+    } else {
+      console.log(`${clientId} was recovered so ${peerId} will remain.`);
+    }
+  };
+
+  // add peer to list of members
+  if (!members.includes(peerId)) members.push(peerId);
 
   if (socket.recovered) {
     console.log('recovered!');
     console.log('socket.rooms:', socket.rooms);
     console.log('socket.data:', socket.data);
   } else {
-    console.log('new connection');
+    console.log(`new connection for ${socket.peerId}`);
     socket.join('sample room');
     socket.data.foo = 'bar';
   }
 
   socket.on('disconnect', (reason) => {
-    console.log(`disconnect ${socket.id} due to ${reason}`);
+    console.log(
+      `disconnect ${socket.id}, which is ${socket.peerId} due to ${reason}`,
+    );
+    console.log('Starting timer to remove peer');
+    setTimeout(() => {
+      speculativeClear(socket.id, socket.peerId);
+    }, pingInterval * pingCyclesToKeepAlive);
+    console.log(members);
   });
 
   socket.on('message', () => {
@@ -68,19 +99,9 @@ io.on('connection', (socket) => {
   });
 });
 
+// TODO: Check if this is required or if it can be replaced by a simple ping()
 const interval = setInterval(function ping() {
-  io.sockets.sockets.forEach((clientSocket, clientId) => {
-    console.log(clientId);
-    console.log(`client was last seen at ${clientSocket.lastSeen}`);
-    if (
-      getEpoch() - clientSocket.lastSeen >
-      pingCyclesToKeepAlive * pingInterval
-    ) {
-      console.log(
-        `socket ${clientId} has been inactive for too long. disconnecting`,
-      );
-      return clientSocket.disconnect();
-    }
+  io.sockets.sockets.forEach((clientSocket) => {
     clientSocket.emit('alive');
   });
 }, pingInterval * 1.2);
