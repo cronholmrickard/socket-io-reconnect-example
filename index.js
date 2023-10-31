@@ -19,19 +19,34 @@ const httpServer = createServer(async (req, res) => {
   res.end(content);
 });
 
+const pingInterval = 5000;
+const pingCyclesToKeepAlive = 10;
+
 const io = new Server(httpServer, {
   connectionStateRecovery: {
     // the backup duration of the sessions and the packets
     maxDisconnectionDuration: 2 * 60 * 1000,
     // whether to skip middlewares upon successful recovery
     skipMiddlewares: true,
-    pingInterval: 5000, // frequent pings when testing
+    pingInterval, // frequent pings when testing
     pingTimeout: 1000,
   },
 });
 
+function getEpoch() {
+  const currentUTCTime = new Date();
+  return Math.floor(currentUTCTime);
+}
+
+function heartbeat() {
+  this.lastSeen = getEpoch();
+}
+
 io.on('connection', (socket) => {
   console.log(`connect ${socket.id}`);
+
+  socket.lastSeen = getEpoch();
+  socket.on('alive', heartbeat);
 
   if (socket.recovered) {
     console.log('recovered!');
@@ -51,6 +66,27 @@ io.on('connection', (socket) => {
     const message = `Hello from server at ${new Date().toISOString()}`;
     socket.emit('message_response', message);
   });
+});
+
+const interval = setInterval(function ping() {
+  io.sockets.sockets.forEach((clientSocket, clientId) => {
+    console.log(clientId);
+    console.log(`client was last seen at ${clientSocket.lastSeen}`);
+    if (
+      getEpoch() - clientSocket.lastSeen >
+      pingCyclesToKeepAlive * pingInterval
+    ) {
+      console.log(
+        `socket ${clientId} has been inactive for too long. disconnecting`,
+      );
+      return clientSocket.disconnect();
+    }
+    clientSocket.emit('alive');
+  });
+}, pingInterval * 1.2);
+
+io.on('close', function close() {
+  clearInterval(interval);
 });
 
 httpServer.listen(3050);

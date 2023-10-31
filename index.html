@@ -13,9 +13,25 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
+      function generateRandomString(length) {
+        const characters =
+          'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let result = '';
+
+        for (let i = 0; i < length; i++) {
+          const randomIndex = Math.floor(Math.random() * characters.length);
+          result += characters.charAt(randomIndex);
+        }
+
+        return result;
+      }
+
       const $connectionStatus = document.getElementById('connectionStatus');
       const $recoveryStatus = document.getElementById('recoveryStatus');
       const $messages = document.getElementById('messages');
+
+      const peerId = generateRandomString(6);
+      console.log(peerId);
 
       const socket = io({
         reconnectionDelay: 5000, // 1000 by default
@@ -49,6 +65,10 @@
         $connectionStatus.innerText = 'disconnected';
         $recoveryStatus.innerText = '-';
         alert(`Socket disconnected due to ${reason}`);
+      });
+
+      socket.on('alive', () => {
+        socket.emit('alive');
       });
     </script>
   </body>
