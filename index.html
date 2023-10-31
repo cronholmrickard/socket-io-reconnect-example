@@ -38,11 +38,13 @@
         query: { peerId },
       });
 
+      let emitInterval;
+
       socket.on('connect', () => {
         $connectionStatus.innerText = 'connected';
         $recoveryStatus.innerText = '' + socket.recovered;
 
-        setInterval(() => {
+        emitInterval = setInterval(() => {
           // emit a message on the socket
           socket.emit('message');
         }, 5000);
@@ -63,13 +65,9 @@
       });
 
       socket.on('disconnect', (reason) => {
-        $connectionStatus.innerText = 'disconnected';
+        $connectionStatus.innerText = `disconnected due to ${reason}`;
         $recoveryStatus.innerText = '-';
-        alert(`Socket disconnected due to ${reason}`);
-      });
-
-      socket.on('alive', () => {
-        socket.emit('alive');
+        clearInterval(emitInterval);
       });
     </script>
   </body>
