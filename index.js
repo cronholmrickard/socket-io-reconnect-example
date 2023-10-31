@@ -33,25 +33,13 @@ const io = new Server(httpServer, {
   },
 });
 
-function getEpoch() {
-  const currentUTCTime = new Date();
-  return Math.floor(currentUTCTime);
-}
-
-function heartbeat() {
-  this.lastSeen = getEpoch();
-}
-
-const members = [];
+let members = [];
 
 io.on('connection', (socket) => {
   const { peerId } = socket.handshake.query;
 
   console.log(`connect ${socket.id}`);
   socket.peerId = peerId;
-
-  socket.lastSeen = getEpoch();
-  socket.on('alive', heartbeat);
 
   const speculativeClear = (clientId, peerId) => {
     // check if clientId is in sockets
@@ -82,32 +70,22 @@ io.on('connection', (socket) => {
     socket.data.foo = 'bar';
   }
 
+  console.log(members);
+
   socket.on('disconnect', (reason) => {
     console.log(
       `disconnect ${socket.id}, which is ${socket.peerId} due to ${reason}`,
     );
-    console.log('Starting timer to remove peer');
+    console.log(`Starting timer to remove peer ${socket.peerId}`);
     setTimeout(() => {
       speculativeClear(socket.id, socket.peerId);
     }, pingInterval * pingCyclesToKeepAlive);
-    console.log(members);
   });
 
   socket.on('message', () => {
     const message = `Hello from server at ${new Date().toISOString()}`;
     socket.emit('message_response', message);
   });
-});
-
-// TODO: Check if this is required or if it can be replaced by a simple ping()
-const interval = setInterval(function ping() {
-  io.sockets.sockets.forEach((clientSocket) => {
-    clientSocket.emit('alive');
-  });
-}, pingInterval * 1.2);
-
-io.on('close', function close() {
-  clearInterval(interval);
 });
 
 httpServer.listen(3050);
