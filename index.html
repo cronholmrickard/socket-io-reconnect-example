@@ -24,19 +24,31 @@
       socket.on('connect', () => {
         $connectionStatus.innerText = 'connected';
         $recoveryStatus.innerText = '' + socket.recovered;
+
+        setInterval(() => {
+          // emit a message on the socket
+          socket.emit('message');
+        }, 5000);
       });
 
+      // log the response
       socket.on('message_response', (message) => {
-        console.log(message);
+        const item = document.createElement('li');
+        item.textContent = message;
+        $messages.prepend(item);
+        if ($messages.childElementCount > 10) {
+          $messages.removeChild($messages.lastChild);
+        }
       });
 
       socket.on('connection_error', (reason) => {
         console.log('Disconnected because', reason);
       });
 
-      socket.on('disconnect', () => {
+      socket.on('disconnect', (reason) => {
         $connectionStatus.innerText = 'disconnected';
         $recoveryStatus.innerText = '-';
+        alert(`Socket disconnected due to ${reason}`);
       });
     </script>
   </body>

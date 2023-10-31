@@ -25,8 +25,8 @@ const io = new Server(httpServer, {
     maxDisconnectionDuration: 2 * 60 * 1000,
     // whether to skip middlewares upon successful recovery
     skipMiddlewares: true,
-    pingInterval: 25000,
-    pingTimeout: 10000,
+    pingInterval: 5000, // frequent pings when testing
+    pingTimeout: 1000,
   },
 });
 
@@ -45,6 +45,11 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', (reason) => {
     console.log(`disconnect ${socket.id} due to ${reason}`);
+  });
+
+  socket.on('message', () => {
+    const message = `Hello from server at ${new Date().toISOString()}`;
+    socket.emit('message_response', message);
   });
 });
 
