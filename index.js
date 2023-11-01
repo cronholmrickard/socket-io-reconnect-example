@@ -28,9 +28,9 @@ const io = new Server(httpServer, {
     maxDisconnectionDuration: 2 * 60 * 1000,
     // whether to skip middlewares upon successful recovery
     skipMiddlewares: true,
-    pingInterval, // frequent pings when testing
-    pingTimeout: 1000,
   },
+  pingInterval, // frequent pings when testing
+  pingTimeout: 1000,
 });
 
 let members = [];
