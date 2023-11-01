@@ -34,16 +34,18 @@ const io = new Server(httpServer, {
 });
 
 let members = [];
+const connectedClients = new Set();
 
 io.on('connection', (socket) => {
   const { peerId } = socket.handshake.query;
 
   console.log(`connect ${socket.id}`);
   socket.peerId = peerId;
+  connectedClients.add(socket.id);
 
   const speculativeClear = (clientId, peerId) => {
     // check if clientId is in sockets
-    if (!io.sockets.sockets.has(clientId)) {
+    if (!connectedClients.has(clientId)) {
       // remove from members
       members = members.filter((member) => {
         if (member === peerId) {
@@ -76,6 +78,7 @@ io.on('connection', (socket) => {
     console.log(
       `disconnect ${socket.id}, which is ${socket.peerId} due to ${reason}`,
     );
+    connectedClients.delete(socket.id);
     console.log(`Starting timer to remove peer ${socket.peerId}`);
     setTimeout(() => {
       speculativeClear(socket.id, socket.peerId);
